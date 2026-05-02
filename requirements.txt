@@ -1,0 +1,12 @@
+# Phase 0 — inventaire & exploration
+pandas>=2.0
+matplotlib>=3.7
+python-dateutil>=2.8
+
+# Phases suivantes (à activer plus tard)
+# fastapi>=0.110
+# uvicorn[standard]>=0.27
+# sqlalchemy>=2.0
+# pyyaml>=6.0
+# phue>=1.1
+# pytest>=8.0

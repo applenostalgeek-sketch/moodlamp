@@ -1,0 +1,24 @@
+# Données perso
+data/
+reports/
+
+# Credentials
+.moodlamp/
+credentials.json
+*.token
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+
+# OS
+.DS_Store
+
+# DB locale
+*.db
+*.sqlite
+*.sqlite3

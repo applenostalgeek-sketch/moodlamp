@@ -6,8 +6,11 @@ export const CONFIG = {
     duration_good: 7.0,
     duration_poor: 5.0,
     duration_terrible: 3.5,
-    deep_target_pct: 18.0,
-    deep_min_pct: 8.0,
+    // Calibré sur la distribution réelle du capteur Huawei (61 nuits) :
+    // médiane 28%, p10 18%, p75 35%. Huawei sur-rapporte vs norme médicale
+    // (~1.5x), seuils ajustés en conséquence pour préserver le signal.
+    deep_target_pct: 35.0,
+    deep_min_pct: 18.0,
     duration_weight: 0.65,
     deep_weight: 0.35,
   },

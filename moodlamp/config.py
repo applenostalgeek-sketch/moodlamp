@@ -41,8 +41,11 @@ SLEEP = {
     "duration_terrible":  3.5,   # ≤3h30 → durée notée 0
 
     # Part de sommeil profond (en % du total)
-    "deep_target_pct":   18.0,   # 18% de profond = excellent
-    "deep_min_pct":       8.0,   # <8% = mauvais
+    # Calibré sur la distribution réelle du capteur Huawei (61 nuits) :
+    # médiane 28%, p10 18%, p75 35%. Norme médicale Apple = 13-23%, Huawei
+    # sur-rapporte d'~1.5x — d'où ces seuils plus hauts qu'en standard.
+    "deep_target_pct":   35.0,   # p75 utilisateur → note qualité 100
+    "deep_min_pct":      18.0,   # p10 utilisateur → note qualité 30
 
     # Pondération interne entre durée et qualité
     "duration_weight":   0.65,   # 65% durée, 35% qualité (profond)

@@ -6,114 +6,38 @@
   <title>MoodLamp</title>
   <style>
     :root {
-      --bg: #0d0d0f;
+      --bg-top: #1a1a2e;
+      --bg-bot: #0d0d1a;
       --fg: #fff;
       --muted: rgba(255, 255, 255, 0.55);
-      --card: rgba(255, 255, 255, 0.04);
-      --border: rgba(255, 255, 255, 0.08);
+      --card: rgba(255, 255, 255, 0.05);
+      --border: rgba(255, 255, 255, 0.1);
+      --hp-color: #f1c40f;
+      --aura: rgba(241, 196, 15, 0.2);
     }
     * { box-sizing: border-box; }
     html, body { margin: 0; padding: 0; height: 100%; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
-      background: var(--bg);
+      background: linear-gradient(180deg, var(--bg-top) 0%, var(--bg-bot) 100%);
       color: var(--fg);
       min-height: 100vh;
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding: 32px 20px 60px;
-      transition: background 1.2s ease;
+      padding: 20px 16px 40px;
+      transition: background 1.5s ease;
+      overflow-x: hidden;
     }
     header {
       width: 100%;
-      max-width: 480px;
+      max-width: 460px;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      font-size: 13px;
-      color: var(--muted);
-      margin-bottom: 36px;
-    }
-    .lamp-wrap {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 24px;
-      margin-bottom: 28px;
-    }
-    .lamp {
-      width: 220px;
-      height: 220px;
-      border-radius: 50%;
-      background: #444;
-      box-shadow: 0 0 80px 4px currentColor;
-      color: #888;
-      transition: background 1.2s ease, box-shadow 1.2s ease, color 1.2s ease;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 64px;
-      font-weight: 200;
-      letter-spacing: -2px;
-    }
-    .lamp.loading { opacity: 0.4; }
-    .label {
-      text-transform: uppercase;
-      font-size: 12px;
-      letter-spacing: 2px;
-      color: var(--muted);
-    }
-    .components {
-      width: 100%;
-      max-width: 480px;
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 10px;
-      margin-bottom: 24px;
-    }
-    .comp {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 14px 16px;
-    }
-    .comp-name {
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 1.4px;
-      color: var(--muted);
-      margin-bottom: 6px;
-    }
-    .comp-value {
-      font-size: 22px;
-      font-weight: 300;
-    }
-    .comp-detail {
-      font-size: 11px;
-      color: var(--muted);
-      margin-top: 4px;
-      min-height: 14px;
-    }
-    .meta {
-      width: 100%;
-      max-width: 480px;
       font-size: 12px;
       color: var(--muted);
-      display: flex;
-      justify-content: space-between;
-      flex-wrap: wrap;
-      gap: 6px;
-    }
-    .err {
-      max-width: 480px;
-      width: 100%;
-      background: rgba(192, 57, 43, 0.18);
-      border: 1px solid rgba(192, 57, 43, 0.4);
-      border-radius: 10px;
-      padding: 14px 16px;
-      font-size: 13px;
-      color: #ff8a80;
+      margin-bottom: 4px;
     }
     button.refresh {
       background: transparent;
@@ -125,6 +49,266 @@
       cursor: pointer;
     }
     button.refresh:hover { color: var(--fg); }
+
+    /* Stage = scène où évolue le perso */
+    .stage {
+      width: 100%;
+      max-width: 460px;
+      height: 320px;
+      position: relative;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      margin-top: 8px;
+    }
+    .aura {
+      position: absolute;
+      bottom: 30px;
+      width: 220px;
+      height: 220px;
+      border-radius: 50%;
+      background: radial-gradient(circle, var(--aura) 0%, transparent 70%);
+      filter: blur(20px);
+      transition: background 1.5s ease;
+      pointer-events: none;
+    }
+    .ground {
+      position: absolute;
+      bottom: 28px;
+      width: 80%;
+      max-width: 320px;
+      height: 8px;
+      background: radial-gradient(ellipse, rgba(255,255,255,0.15), transparent);
+      border-radius: 50%;
+    }
+
+    /* CHARACTER */
+    .character {
+      width: 200px;
+      height: 280px;
+      position: relative;
+      z-index: 2;
+    }
+    .character svg { width: 100%; height: 100%; overflow: visible; }
+
+    /* All face/expression layers default hidden, JS classes turn them on */
+    .face-group { display: none; }
+
+    /* === ÉTATS === */
+
+    /* IDLE — respiration douce */
+    @keyframes breathe {
+      0%, 100% { transform: scale(1, 1); }
+      50% { transform: scale(1.015, 1.025); }
+    }
+    .character.state-idle .body-grp {
+      transform-origin: 100px 240px;
+      animation: breathe 3.2s ease-in-out infinite;
+    }
+
+    /* WALKING — jambes balancent + bob léger */
+    @keyframes walk-leg-l {
+      0%, 100% { transform: rotate(-12deg); }
+      50%      { transform: rotate(12deg); }
+    }
+    @keyframes walk-leg-r {
+      0%, 100% { transform: rotate(12deg); }
+      50%      { transform: rotate(-12deg); }
+    }
+    @keyframes walk-arm-l {
+      0%, 100% { transform: rotate(8deg); }
+      50%      { transform: rotate(-8deg); }
+    }
+    @keyframes walk-arm-r {
+      0%, 100% { transform: rotate(-8deg); }
+      50%      { transform: rotate(8deg); }
+    }
+    @keyframes walk-bob {
+      0%, 100% { transform: translateY(0); }
+      25%, 75% { transform: translateY(-3px); }
+    }
+    .character.state-walking .leg-l { transform-origin: 80px 200px; animation: walk-leg-l 0.7s ease-in-out infinite; }
+    .character.state-walking .leg-r { transform-origin: 120px 200px; animation: walk-leg-r 0.7s ease-in-out infinite; }
+    .character.state-walking .arm-l { transform-origin: 55px 130px; animation: walk-arm-l 0.7s ease-in-out infinite; }
+    .character.state-walking .arm-r { transform-origin: 145px 130px; animation: walk-arm-r 0.7s ease-in-out infinite; }
+    .character.state-walking .body-grp { animation: walk-bob 0.7s ease-in-out infinite; }
+
+    /* RUNNING — comme walking mais 2× plus rapide + amplitude plus grande */
+    @keyframes run-leg-l {
+      0%, 100% { transform: rotate(-30deg); }
+      50%      { transform: rotate(30deg); }
+    }
+    @keyframes run-leg-r {
+      0%, 100% { transform: rotate(30deg); }
+      50%      { transform: rotate(-30deg); }
+    }
+    @keyframes run-arm-l {
+      0%, 100% { transform: rotate(35deg); }
+      50%      { transform: rotate(-35deg); }
+    }
+    @keyframes run-arm-r {
+      0%, 100% { transform: rotate(-35deg); }
+      50%      { transform: rotate(35deg); }
+    }
+    @keyframes run-bob {
+      0%, 100% { transform: translateY(0); }
+      50%      { transform: translateY(-8px); }
+    }
+    .character.state-running .leg-l { transform-origin: 80px 200px; animation: run-leg-l 0.32s ease-in-out infinite; }
+    .character.state-running .leg-r { transform-origin: 120px 200px; animation: run-leg-r 0.32s ease-in-out infinite; }
+    .character.state-running .arm-l { transform-origin: 55px 130px; animation: run-arm-l 0.32s ease-in-out infinite; }
+    .character.state-running .arm-r { transform-origin: 145px 130px; animation: run-arm-r 0.32s ease-in-out infinite; }
+    .character.state-running .body-grp { animation: run-bob 0.32s ease-in-out infinite; }
+
+    /* SLEEPING — légère oscillation + Zzz qui montent */
+    @keyframes sleep-breathe {
+      0%, 100% { transform: scale(1) rotate(0deg); }
+      50%      { transform: scale(1.04, 0.97) rotate(0.5deg); }
+    }
+    .character.state-sleeping .body-grp {
+      transform-origin: 100px 240px;
+      animation: sleep-breathe 4s ease-in-out infinite;
+    }
+    .zzz { display: none; }
+    .character.state-sleeping .zzz { display: block; }
+    @keyframes zzz-float {
+      0%   { opacity: 0; transform: translate(0, 0) scale(0.5); }
+      15%  { opacity: 1; }
+      100% { opacity: 0; transform: translate(15px, -50px) scale(1.4); }
+    }
+    .zzz text {
+      animation: zzz-float 2.4s ease-out infinite;
+      font-family: serif;
+      font-weight: bold;
+      fill: rgba(255,255,255,0.85);
+    }
+    .zzz text:nth-child(2) { animation-delay: 0.8s; }
+    .zzz text:nth-child(3) { animation-delay: 1.6s; }
+
+    /* === HUMEURS — sélection des éléments du visage === */
+    /* Les yeux/bouches "non utilisés" restent display:none, on rend uniquement
+       celui qui correspond à l'humeur courante (ou à l'état sleeping). */
+    .character.mood-happy     .face-happy,
+    .character.mood-neutral   .face-neutral,
+    .character.mood-tired     .face-tired,
+    .character.mood-exhausted .face-exhausted { display: block; }
+    /* Sleeping override quel que soit l'humeur */
+    .character.state-sleeping .face-happy,
+    .character.state-sleeping .face-neutral,
+    .character.state-sleeping .face-tired,
+    .character.state-sleeping .face-exhausted { display: none !important; }
+    .character.state-sleeping .face-sleeping { display: block; }
+
+    /* === HUD === */
+    .label-row {
+      display: flex;
+      gap: 8px;
+      align-items: baseline;
+      justify-content: center;
+      margin-top: 6px;
+    }
+    .activity-label {
+      text-transform: uppercase;
+      font-size: 11px;
+      letter-spacing: 2px;
+      color: var(--muted);
+    }
+    .activity-icon { font-size: 14px; }
+
+    .hp-wrap {
+      width: 100%;
+      max-width: 460px;
+      margin-top: 24px;
+    }
+    .hp-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    .hp-bar {
+      width: 100%;
+      height: 18px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      overflow: hidden;
+      position: relative;
+    }
+    .hp-fill {
+      height: 100%;
+      width: 0%;
+      background: var(--hp-color);
+      border-radius: 9px;
+      transition: width 1.2s ease, background 1.2s ease;
+      box-shadow: 0 0 12px var(--hp-color);
+    }
+    .hp-numeric {
+      text-align: right;
+      font-size: 13px;
+      color: var(--fg);
+      margin-top: 6px;
+      font-variant-numeric: tabular-nums;
+    }
+    .hp-numeric .total { color: var(--muted); }
+
+    /* Tiles */
+    .tiles {
+      width: 100%;
+      max-width: 460px;
+      margin-top: 24px;
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+    }
+    .tile {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+    }
+    .tile-name {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1.4px;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+    .tile-value {
+      font-size: 18px;
+      font-weight: 300;
+    }
+    .tile-detail {
+      font-size: 10px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    .meta {
+      width: 100%;
+      max-width: 460px;
+      margin-top: 16px;
+      font-size: 11px;
+      color: var(--muted);
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .err {
+      max-width: 460px;
+      width: 100%;
+      margin-top: 12px;
+      background: rgba(192, 57, 43, 0.18);
+      border: 1px solid rgba(192, 57, 43, 0.4);
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 13px;
+      color: #ff8a80;
+    }
   </style>
 </head>
 <body>
@@ -133,22 +317,118 @@
     <button class="refresh" id="refresh">Actualiser</button>
   </header>
 
-  <div class="lamp-wrap">
-    <div class="lamp loading" id="lamp">—</div>
-    <div class="label" id="state">chargement</div>
+  <div class="stage">
+    <div class="aura" id="aura"></div>
+    <div class="ground"></div>
+
+    <div class="character state-idle mood-neutral" id="character">
+      <svg viewBox="0 0 200 280">
+        <!-- Bulles Zzz (état sleeping uniquement) -->
+        <g class="zzz">
+          <text x="135" y="60" font-size="22">Z</text>
+          <text x="148" y="40" font-size="18">z</text>
+          <text x="160" y="22" font-size="14">z</text>
+        </g>
+
+        <g class="body-grp">
+          <!-- Jambes (derrière le corps) -->
+          <g class="leg-l">
+            <rect x="73" y="200" width="14" height="44" rx="7" fill="#ffe8b5"/>
+            <ellipse cx="80" cy="252" rx="12" ry="6" fill="#3a2a1a"/>
+          </g>
+          <g class="leg-r">
+            <rect x="113" y="200" width="14" height="44" rx="7" fill="#ffe8b5"/>
+            <ellipse cx="120" cy="252" rx="12" ry="6" fill="#3a2a1a"/>
+          </g>
+
+          <!-- Corps -->
+          <ellipse cx="100" cy="160" rx="48" ry="55" fill="#ffd97a"/>
+
+          <!-- Bras -->
+          <g class="arm-l">
+            <ellipse cx="55" cy="160" rx="10" ry="28" fill="#ffd97a"/>
+          </g>
+          <g class="arm-r">
+            <ellipse cx="145" cy="160" rx="10" ry="28" fill="#ffd97a"/>
+          </g>
+
+          <!-- Tête -->
+          <circle cx="100" cy="80" r="50" fill="#ffe8b5"/>
+          <!-- Joues -->
+          <circle cx="65" cy="92" r="7" fill="#ff9b9b" opacity="0.6"/>
+          <circle cx="135" cy="92" r="7" fill="#ff9b9b" opacity="0.6"/>
+
+          <!-- ============ FACES ============ -->
+          <!-- Happy : yeux pétillants + grand sourire -->
+          <g class="face-group face-happy">
+            <path d="M82,75 Q88,68 94,75" stroke="#222" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+            <path d="M106,75 Q112,68 118,75" stroke="#222" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+            <path d="M82,100 Q100,118 118,100" stroke="#222" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+          </g>
+          <!-- Neutral : yeux ronds, bouche petite ligne -->
+          <g class="face-group face-neutral">
+            <circle cx="88" cy="78" r="4" fill="#222"/>
+            <circle cx="112" cy="78" r="4" fill="#222"/>
+            <path d="M90,103 L110,103" stroke="#222" stroke-width="3" stroke-linecap="round"/>
+          </g>
+          <!-- Tired : yeux mi-clos, bouche neutre -->
+          <g class="face-group face-tired">
+            <path d="M82,80 Q88,84 94,80" stroke="#222" stroke-width="3" fill="none" stroke-linecap="round"/>
+            <path d="M106,80 Q112,84 118,80" stroke="#222" stroke-width="3" fill="none" stroke-linecap="round"/>
+            <path d="M88,105 L112,105" stroke="#222" stroke-width="3" stroke-linecap="round"/>
+            <!-- cernes -->
+            <path d="M82,86 L94,86" stroke="#222" stroke-width="1.5" opacity="0.4"/>
+            <path d="M106,86 L118,86" stroke="#222" stroke-width="1.5" opacity="0.4"/>
+          </g>
+          <!-- Exhausted : X-eyes / yeux barrés + bouche triste -->
+          <g class="face-group face-exhausted">
+            <path d="M82,73 L94,83 M94,73 L82,83" stroke="#222" stroke-width="3" stroke-linecap="round"/>
+            <path d="M106,73 L118,83 M118,73 L106,83" stroke="#222" stroke-width="3" stroke-linecap="round"/>
+            <path d="M85,108 Q100,98 115,108" stroke="#222" stroke-width="3" fill="none" stroke-linecap="round"/>
+          </g>
+          <!-- Sleeping : yeux fermés, petite bouche ouverte -->
+          <g class="face-group face-sleeping">
+            <path d="M82,80 Q88,75 94,80" stroke="#222" stroke-width="3" fill="none" stroke-linecap="round"/>
+            <path d="M106,80 Q112,75 118,80" stroke="#222" stroke-width="3" fill="none" stroke-linecap="round"/>
+            <ellipse cx="100" cy="105" rx="6" ry="4" fill="#3a2a1a"/>
+          </g>
+        </g>
+      </svg>
+    </div>
   </div>
 
-  <div class="components" id="components"></div>
+  <div class="label-row">
+    <span class="activity-icon" id="activity-icon">🙂</span>
+    <span class="activity-label" id="activity-label">en attente…</span>
+  </div>
+
+  <div class="hp-wrap">
+    <div class="hp-row">
+      <span>Forme du jour</span>
+      <span id="hp-state">—</span>
+    </div>
+    <div class="hp-bar">
+      <div class="hp-fill" id="hp-fill"></div>
+    </div>
+    <div class="hp-numeric"><span id="hp-current">—</span><span class="total"> / 100</span></div>
+  </div>
+
+  <div class="tiles" id="tiles"></div>
   <div class="meta" id="meta"></div>
   <div id="error"></div>
 
   <script>
-    const lamp = document.getElementById("lamp");
-    const stateEl = document.getElementById("state");
-    const compEl = document.getElementById("components");
+    const character = document.getElementById("character");
+    const aura = document.getElementById("aura");
+    const hpFill = document.getElementById("hp-fill");
+    const hpCurrent = document.getElementById("hp-current");
+    const hpState = document.getElementById("hp-state");
+    const tilesEl = document.getElementById("tiles");
     const metaEl = document.getElementById("meta");
     const errEl = document.getElementById("error");
     const updatedEl = document.getElementById("updated");
+    const activityIcon = document.getElementById("activity-icon");
+    const activityLabel = document.getElementById("activity-label");
     const refreshBtn = document.getElementById("refresh");
 
     function fmtAge(iso) {
@@ -162,17 +442,50 @@
       return `il y a ${Math.round(h / 24)} j`;
     }
 
-    function tile(name, score, detail) {
-      const div = document.createElement("div");
-      div.className = "comp";
-      div.innerHTML = `
-        <div class="comp-name">${name}</div>
-        <div class="comp-value">${Math.round(score)}</div>
-        <div class="comp-detail">${detail}</div>
-      `;
-      return div;
+    function pickMood(score) {
+      if (score < 30) return "exhausted";
+      if (score < 50) return "tired";
+      if (score < 70) return "neutral";
+      return "happy";
     }
 
+    function pickState(d) {
+      if (d.is_asleep) return "sleeping";
+      const a = d.recent_activity || {};
+      const steps = a.steps_60min || 0;
+      const maxHr = a.max_hr_60min || 0;
+      if (maxHr >= 110 || steps >= 500) return "running";
+      if (steps >= 50) return "walking";
+      return "idle";
+    }
+
+    const stateLabels = {
+      sleeping: ["💤", "endormi"],
+      running:  ["🏃", "en mouvement"],
+      walking:  ["🚶", "actif"],
+      idle:     ["🧘", "tranquille"],
+    };
+    const moodIcons = {
+      happy:     "😄",
+      neutral:   "🙂",
+      tired:     "😪",
+      exhausted: "😩",
+    };
+
+    function setCharacter(state, mood) {
+      character.className = `character state-${state} mood-${mood}`;
+      const [icon, label] = stateLabels[state];
+      const moodIcon = state === "sleeping" ? "💤" : moodIcons[mood];
+      activityIcon.textContent = moodIcon;
+      activityLabel.textContent = label;
+    }
+
+    const componentLabels = {
+      sleep: "Sommeil",
+      rhr: "FC repos",
+      load: "Charge 3j",
+      discharge: "Décharge",
+    };
     function detailFor(key, det) {
       if (!det) return "";
       switch (key) {
@@ -181,23 +494,16 @@
           return `${det.hours}h · ${det.deep_pct}% profond`;
         case "rhr":
           if (det.note) return det.note;
-          return `${det.current} bpm (Δ ${det.delta >= 0 ? "+" : ""}${det.delta})`;
+          return `${det.current} bpm (Δ${det.delta >= 0 ? "+" : ""}${det.delta})`;
         case "load":
           return `${det.steps_3d.toLocaleString()} pas · ratio ${det.ratio}`;
         case "discharge":
           if (det.note) return det.note;
-          return `${det.minutes_high_hr} min FC élevée · ${det.since_wake_h}h éveillé`;
+          return `${det.minutes_high_hr}min FC↑ · ${det.since_wake_h}h éveillé`;
         default:
           return "";
       }
     }
-
-    const labels = {
-      sleep: "Sommeil",
-      rhr: "FC repos",
-      load: "Charge 3j",
-      discharge: "Décharge",
-    };
 
     async function load() {
       errEl.innerHTML = "";
@@ -216,41 +522,48 @@
           }
           throw new Error(`HTTP ${r.status}`);
         }
-        const data = await r.json();
-        render(data);
+        render(await r.json());
       } catch (e) {
         errEl.innerHTML = `<div class="err">${e.message}</div>`;
-        lamp.style.background = "#222";
-        lamp.style.color = "#222";
-        lamp.textContent = "—";
-        stateEl.textContent = "indisponible";
+        setCharacter("idle", "exhausted");
+        hpState.textContent = "indisponible";
       }
     }
 
     function render(d) {
-      lamp.classList.remove("loading");
-      lamp.style.background = d.color_hex;
-      lamp.style.color = d.color_hex;
-      lamp.textContent = Math.round(d.score);
-      stateEl.textContent = d.is_asleep
-        ? `endormi (${d.color_name})`
-        : d.color_name;
+      const mood = pickMood(d.score);
+      const state = pickState(d);
+      setCharacter(state, mood);
 
-      compEl.innerHTML = "";
+      hpFill.style.width = `${Math.max(2, Math.min(100, d.score))}%`;
+      hpFill.style.background = d.color_hex;
+      hpFill.style.boxShadow = `0 0 14px ${d.color_hex}`;
+      hpCurrent.textContent = Math.round(d.score);
+      hpState.textContent = d.is_asleep ? "endormi" : d.color_name;
+
+      // Tint global
+      document.documentElement.style.setProperty("--hp-color", d.color_hex);
+      document.documentElement.style.setProperty("--aura", d.color_hex + "40");
+
+      tilesEl.innerHTML = "";
       for (const k of ["sleep", "rhr", "load", "discharge"]) {
-        compEl.appendChild(
-          tile(labels[k], d.components[k], detailFor(k, d.components_detail[k]))
-        );
+        const div = document.createElement("div");
+        div.className = "tile";
+        div.innerHTML = `
+          <div class="tile-name">${componentLabels[k]}</div>
+          <div class="tile-value">${Math.round(d.components[k])}</div>
+          <div class="tile-detail">${detailFor(k, d.components_detail[k])}</div>
+        `;
+        tilesEl.appendChild(div);
       }
 
+      const a = d.recent_activity || {};
       updatedEl.textContent = "calculé " + fmtAge(d.timestamp);
       metaEl.innerHTML = `
-        <span>confiance ${(d.confidence * 100).toFixed(0)}%</span>
+        <span>confiance ${Math.round(d.confidence * 100)}%</span>
+        <span>1h: ${a.steps_60min || 0} pas, FC max ${a.max_hr_60min || "—"}</span>
         <span>baseline ${Math.round(d.baseline.rhr_mean)} bpm · ${d.baseline.n_days}j</span>
       `;
-
-      // Tint background subtly
-      document.body.style.background = `radial-gradient(circle at center, ${d.color_hex}22, var(--bg) 70%)`;
     }
 
     refreshBtn.addEventListener("click", load);

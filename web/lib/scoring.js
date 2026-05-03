@@ -283,6 +283,21 @@ export function colorForScore(score, isAsleep) {
   return [last[2], last[3]];
 }
 
+export function recentActivity(history, at) {
+  const cutoff = new Date(at.getTime() - 60 * 60 * 1000);
+  const steps = (history.steps || []).filter((s) => new Date(s.ts) >= cutoff);
+  const hrs = (history.heart_rate || []).filter((h) => new Date(h.ts) >= cutoff);
+  const stepsTotal = sumBy(steps, (x) => x.count);
+  const avgHr = hrs.length ? meanOf(hrs.map((h) => h.bpm)) : null;
+  const maxHr = hrs.length ? Math.max(...hrs.map((h) => h.bpm)) : null;
+  return {
+    steps_60min: Math.round(stepsTotal),
+    avg_hr_60min: avgHr != null ? round1(avgHr) : null,
+    max_hr_60min: maxHr,
+    samples_hr: hrs.length,
+  };
+}
+
 export function compute(history, baseline, at = null) {
   if (!at) at = new Date();
   if (!(at instanceof Date)) at = new Date(at);
@@ -342,11 +357,13 @@ export function compute(history, baseline, at = null) {
   }
 
   const [colorName, colorHex] = colorForScore(score, isAsleep);
+  const activity = recentActivity(history, at);
 
   return {
     score: round1(score),
     color_name: colorName,
     color_hex: colorHex,
+    recent_activity: activity,
     components: Object.fromEntries(
       Object.entries(components).map(([k, v]) => [k, round1(v)])
     ),

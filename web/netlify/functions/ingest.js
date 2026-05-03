@@ -25,33 +25,45 @@ export default async (req) => {
     return new Response("Method not allowed", { status: 405 });
   }
 
-  let payload;
+  const headers = {};
+  for (const [k, v] of req.headers.entries()) headers[k] = v;
+
+  const rawBody = await req.text();
+
+  let parsed = null;
+  let parseError = null;
   try {
-    payload = await req.json();
-  } catch {
-    return new Response(JSON.stringify({ error: "invalid JSON" }), {
-      status: 400,
-      headers: { "Content-Type": "application/json" },
-    });
+    parsed = JSON.parse(rawBody);
+  } catch (e) {
+    parseError = String(e);
   }
 
   const enriched = {
     received_at: new Date().toISOString(),
-    payload,
+    method: req.method,
+    headers,
+    body_size_bytes: rawBody.length,
+    body_preview: rawBody.slice(0, 4000),
+    parse_error: parseError,
+    parsed_keys: parsed && typeof parsed === "object" ? Object.keys(parsed) : null,
+    parsed,
   };
 
   await store.setJSON("last_payload", enriched);
 
-  const summary = {
-    received_at: enriched.received_at,
-    keys: Object.keys(payload || {}),
-    size_bytes: JSON.stringify(payload).length,
-  };
-
-  return new Response(JSON.stringify({ status: "ok", ...summary }), {
-    status: 200,
-    headers: { "Content-Type": "application/json" },
-  });
+  return new Response(
+    JSON.stringify({
+      status: "ok",
+      received_at: enriched.received_at,
+      body_size_bytes: enriched.body_size_bytes,
+      content_type: headers["content-type"] || null,
+      parsed: parsed !== null,
+    }),
+    {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    }
+  );
 };
 
 export const config = {

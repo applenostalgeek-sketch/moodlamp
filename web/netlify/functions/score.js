@@ -14,9 +14,10 @@ export default async (req) => {
   const url = new URL(req.url);
   const fresh = url.searchParams.get("fresh") === "1";
 
-  const [history, baseline] = await Promise.all([
+  const [history, baseline, lastPayload] = await Promise.all([
     blob.get(HISTORY_KEY, { type: "json" }),
     blob.get(BASELINE_KEY, { type: "json" }),
+    blob.get("last_payload", { type: "json" }),
   ]);
 
   if (!baseline) {
@@ -26,17 +27,22 @@ export default async (req) => {
     return json({ status: "error", reason: "no_history" }, 404);
   }
 
+  const lastPushAt = lastPayload?.received_at || null;
+
   if (fresh) {
     const result = compute(history, baseline);
+    result.last_push_at = lastPushAt;
     await blob.setJSON(SCORE_KEY, result);
     return json(result);
   }
 
   const cached = await blob.get(SCORE_KEY, { type: "json" });
   if (cached) {
+    cached.last_push_at = lastPushAt;
     return json(cached);
   }
   const result = compute(history, baseline);
+  result.last_push_at = lastPushAt;
   await blob.setJSON(SCORE_KEY, result);
   return json(result);
 };

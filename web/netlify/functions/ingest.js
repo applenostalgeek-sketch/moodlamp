@@ -6,7 +6,10 @@ import { compute } from "../../lib/scoring.js";
 const HISTORY_KEY = "history";
 const BASELINE_KEY = "baseline";
 const SCORE_KEY = "score";
+const SCORE_HISTORY_KEY = "score_history";
 const LAST_PAYLOAD_KEY = "last_payload";
+
+const SCORE_HISTORY_RETENTION_DAYS = 7;
 
 export default async (req) => {
   const blob = store();
@@ -63,6 +66,18 @@ export default async (req) => {
     try {
       scoreResult = compute(merged, baseline);
       await blob.setJSON(SCORE_KEY, scoreResult);
+
+      const prior = (await blob.get(SCORE_HISTORY_KEY, { type: "json" })) || [];
+      prior.push({
+        ts: scoreResult.timestamp,
+        score: scoreResult.score,
+        color_hex: scoreResult.color_hex,
+        color_name: scoreResult.color_name,
+        is_asleep: scoreResult.is_asleep,
+      });
+      const cutoff = Date.now() - SCORE_HISTORY_RETENTION_DAYS * 24 * 3600 * 1000;
+      const trimmed = prior.filter((h) => new Date(h.ts).getTime() >= cutoff);
+      await blob.setJSON(SCORE_HISTORY_KEY, trimmed);
     } catch (e) {
       scoreError = String(e);
     }

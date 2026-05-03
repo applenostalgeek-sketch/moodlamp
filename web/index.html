@@ -2,32 +2,33 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>MoodLamp</title>
   <style>
     :root {
-      --bg-top: #1a1a2e;
-      --bg-bot: #0d0d1a;
+      --color: #f1c40f;
+      --color-soft: rgba(241, 196, 15, 0.18);
+      --bg: #0a0a0c;
       --fg: #fff;
-      --muted: rgba(255, 255, 255, 0.55);
-      --card: rgba(255, 255, 255, 0.05);
-      --border: rgba(255, 255, 255, 0.1);
-      --hp-color: #f1c40f;
-      --aura: rgba(241, 196, 15, 0.2);
+      --muted: rgba(255, 255, 255, 0.5);
+      --faint: rgba(255, 255, 255, 0.08);
     }
     * { box-sizing: border-box; }
-    html, body { margin: 0; padding: 0; height: 100%; }
+    html, body { margin: 0; padding: 0; min-height: 100%; }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
-      background: linear-gradient(180deg, var(--bg-top) 0%, var(--bg-bot) 100%);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif;
       color: var(--fg);
       min-height: 100vh;
+      min-height: 100dvh;
+      padding: max(env(safe-area-inset-top), 16px) 20px max(env(safe-area-inset-bottom), 32px);
+      background: var(--bg);
+      background-image:
+        radial-gradient(ellipse at 50% 20%, var(--color-soft) 0%, transparent 65%),
+        radial-gradient(ellipse at 50% 100%, var(--color-soft) 0%, transparent 50%);
+      transition: background-image 1.5s ease;
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding: 20px 16px 40px;
-      transition: background 1.5s ease;
-      overflow-x: hidden;
     }
     header {
       width: 100%;
@@ -35,313 +36,187 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      font-size: 12px;
-      color: var(--muted);
-      margin-bottom: 4px;
-    }
-    button.refresh {
-      background: transparent;
-      color: var(--muted);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 4px 10px;
-      font-size: 12px;
-      cursor: pointer;
-    }
-    button.refresh:hover { color: var(--fg); }
-
-    /* Stage = scène où évolue le perso */
-    .stage {
-      width: 100%;
-      max-width: 460px;
-      height: 320px;
-      position: relative;
-      display: flex;
-      align-items: flex-end;
-      justify-content: center;
-      margin-top: 8px;
-    }
-    .aura {
-      position: absolute;
-      bottom: 30px;
-      width: 220px;
-      height: 220px;
-      border-radius: 50%;
-      background: radial-gradient(circle, var(--aura) 0%, transparent 70%);
-      filter: blur(20px);
-      transition: background 1.5s ease;
-      pointer-events: none;
-    }
-    .ground {
-      position: absolute;
-      bottom: 28px;
-      width: 80%;
-      max-width: 320px;
-      height: 8px;
-      background: radial-gradient(ellipse, rgba(255,255,255,0.15), transparent);
-      border-radius: 50%;
-    }
-
-    /* CHARACTER */
-    .character {
-      width: 200px;
-      height: 280px;
-      position: relative;
-      z-index: 2;
-    }
-    .character svg { width: 100%; height: 100%; overflow: visible; }
-
-    /* All face/expression layers default hidden, JS classes turn them on */
-    .face-group { display: none; }
-
-    /* === ÉTATS === */
-
-    /* IDLE — respiration douce */
-    @keyframes breathe {
-      0%, 100% { transform: scale(1, 1); }
-      50% { transform: scale(1.015, 1.025); }
-    }
-    .character.state-idle .body-grp {
-      transform-origin: 100px 240px;
-      animation: breathe 3.2s ease-in-out infinite;
-    }
-
-    /* WALKING — jambes balancent + bob léger */
-    @keyframes walk-leg-l {
-      0%, 100% { transform: rotate(-12deg); }
-      50%      { transform: rotate(12deg); }
-    }
-    @keyframes walk-leg-r {
-      0%, 100% { transform: rotate(12deg); }
-      50%      { transform: rotate(-12deg); }
-    }
-    @keyframes walk-arm-l {
-      0%, 100% { transform: rotate(8deg); }
-      50%      { transform: rotate(-8deg); }
-    }
-    @keyframes walk-arm-r {
-      0%, 100% { transform: rotate(-8deg); }
-      50%      { transform: rotate(8deg); }
-    }
-    @keyframes walk-bob {
-      0%, 100% { transform: translateY(0); }
-      25%, 75% { transform: translateY(-3px); }
-    }
-    .character.state-walking .leg-l { transform-origin: 80px 200px; animation: walk-leg-l 0.7s ease-in-out infinite; }
-    .character.state-walking .leg-r { transform-origin: 120px 200px; animation: walk-leg-r 0.7s ease-in-out infinite; }
-    .character.state-walking .arm-l { transform-origin: 55px 130px; animation: walk-arm-l 0.7s ease-in-out infinite; }
-    .character.state-walking .arm-r { transform-origin: 145px 130px; animation: walk-arm-r 0.7s ease-in-out infinite; }
-    .character.state-walking .body-grp { animation: walk-bob 0.7s ease-in-out infinite; }
-
-    /* RUNNING — comme walking mais 2× plus rapide + amplitude plus grande */
-    @keyframes run-leg-l {
-      0%, 100% { transform: rotate(-30deg); }
-      50%      { transform: rotate(30deg); }
-    }
-    @keyframes run-leg-r {
-      0%, 100% { transform: rotate(30deg); }
-      50%      { transform: rotate(-30deg); }
-    }
-    @keyframes run-arm-l {
-      0%, 100% { transform: rotate(35deg); }
-      50%      { transform: rotate(-35deg); }
-    }
-    @keyframes run-arm-r {
-      0%, 100% { transform: rotate(-35deg); }
-      50%      { transform: rotate(35deg); }
-    }
-    @keyframes run-bob {
-      0%, 100% { transform: translateY(0); }
-      50%      { transform: translateY(-8px); }
-    }
-    .character.state-running .leg-l { transform-origin: 80px 200px; animation: run-leg-l 0.32s ease-in-out infinite; }
-    .character.state-running .leg-r { transform-origin: 120px 200px; animation: run-leg-r 0.32s ease-in-out infinite; }
-    .character.state-running .arm-l { transform-origin: 55px 130px; animation: run-arm-l 0.32s ease-in-out infinite; }
-    .character.state-running .arm-r { transform-origin: 145px 130px; animation: run-arm-r 0.32s ease-in-out infinite; }
-    .character.state-running .body-grp { animation: run-bob 0.32s ease-in-out infinite; }
-
-    /* SLEEPING — légère oscillation + Zzz qui montent */
-    @keyframes sleep-breathe {
-      0%, 100% { transform: scale(1) rotate(0deg); }
-      50%      { transform: scale(1.04, 0.97) rotate(0.5deg); }
-    }
-    .character.state-sleeping .body-grp {
-      transform-origin: 100px 240px;
-      animation: sleep-breathe 4s ease-in-out infinite;
-    }
-    .zzz { display: none; }
-    .character.state-sleeping .zzz { display: block; }
-    @keyframes zzz-float {
-      0%   { opacity: 0; transform: translate(0, 0) scale(0.5); }
-      15%  { opacity: 1; }
-      100% { opacity: 0; transform: translate(15px, -50px) scale(1.4); }
-    }
-    .zzz text {
-      animation: zzz-float 2.4s ease-out infinite;
-      font-family: serif;
-      font-weight: bold;
-      fill: rgba(255,255,255,0.85);
-    }
-    .zzz text:nth-child(2) { animation-delay: 0.8s; }
-    .zzz text:nth-child(3) { animation-delay: 1.6s; }
-
-    /* === HUMEURS — sélection des éléments du visage === */
-    /* Les yeux/bouches "non utilisés" restent display:none, on rend uniquement
-       celui qui correspond à l'humeur courante (ou à l'état sleeping). */
-    .character.mood-happy     .face-happy,
-    .character.mood-neutral   .face-neutral,
-    .character.mood-tired     .face-tired,
-    .character.mood-exhausted .face-exhausted { display: block; }
-    /* Sleeping override quel que soit l'humeur */
-    .character.state-sleeping .face-happy,
-    .character.state-sleeping .face-neutral,
-    .character.state-sleeping .face-tired,
-    .character.state-sleeping .face-exhausted { display: none !important; }
-    .character.state-sleeping .face-sleeping { display: block; }
-
-    /* === HUD === */
-    .label-row {
-      display: flex;
-      gap: 8px;
-      align-items: baseline;
-      justify-content: center;
-      margin-top: 6px;
-    }
-    .activity-label {
-      text-transform: uppercase;
       font-size: 11px;
       letter-spacing: 2px;
+      text-transform: uppercase;
       color: var(--muted);
     }
-    .activity-icon { font-size: 14px; }
+    header .title { letter-spacing: 3px; }
+    button {
+      background: transparent;
+      color: var(--muted);
+      border: none;
+      padding: 4px 8px;
+      font-size: 11px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    button:hover { color: var(--fg); }
 
-    .hp-wrap {
+    /* === HERO : score géant === */
+    .hero {
+      flex: 1;
       width: 100%;
       max-width: 460px;
-      margin-top: 24px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      padding: 40px 0 30px;
+      min-height: 280px;
     }
-    .hp-row {
+    .score {
+      font-size: clamp(120px, 32vw, 180px);
+      font-weight: 100;
+      line-height: 1;
+      letter-spacing: -6px;
+      color: var(--color);
+      text-shadow: 0 0 40px var(--color-soft);
+      transition: color 1.2s ease, text-shadow 1.2s ease;
+      font-variant-numeric: tabular-nums;
+    }
+    .state {
+      margin-top: 18px;
+      font-size: 13px;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .state .dot {
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--color);
+      margin-right: 10px;
+      vertical-align: middle;
+      transition: background 1.2s;
+    }
+
+    /* === SPARKLINE === */
+    .spark-wrap {
+      width: 100%;
+      max-width: 460px;
+      margin-top: 6px;
+    }
+    .spark-row {
       display: flex;
       justify-content: space-between;
-      font-size: 11px;
+      font-size: 10px;
       letter-spacing: 1.5px;
       text-transform: uppercase;
       color: var(--muted);
       margin-bottom: 6px;
     }
-    .hp-bar {
+    .spark-row .tabs {
+      display: flex;
+      gap: 4px;
+    }
+    .tab {
+      cursor: pointer;
+      padding: 2px 8px;
+      border-radius: 4px;
+      transition: background 0.2s, color 0.2s;
+    }
+    .tab.active { color: var(--fg); background: var(--faint); }
+    .spark {
       width: 100%;
-      height: 18px;
-      background: rgba(255,255,255,0.08);
-      border: 1px solid var(--border);
-      border-radius: 9px;
-      overflow: hidden;
-      position: relative;
+      height: 80px;
+      display: block;
     }
-    .hp-fill {
-      height: 100%;
-      width: 0%;
-      background: var(--hp-color);
-      border-radius: 9px;
-      transition: width 1.2s ease, background 1.2s ease;
-      box-shadow: 0 0 12px var(--hp-color);
+    .spark .area { fill: var(--color); fill-opacity: 0.15; transition: fill 1s; }
+    .spark .line { fill: none; stroke: var(--color); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: stroke 1s; }
+    .spark .pt-last { fill: var(--fg); stroke: var(--color); stroke-width: 2; transition: stroke 1s; }
+    .spark .ref { stroke: rgba(255,255,255,0.06); stroke-width: 1; stroke-dasharray: 2,3; }
+    .spark .lbl { fill: rgba(255,255,255,0.3); font-size: 9px; font-family: inherit; }
+    .spark .empty {
+      fill: var(--muted);
+      font-size: 11px;
+      font-family: inherit;
+      letter-spacing: 1px;
+      text-transform: uppercase;
     }
-    .hp-numeric {
-      text-align: right;
-      font-size: 13px;
-      color: var(--fg);
-      margin-top: 6px;
-      font-variant-numeric: tabular-nums;
-    }
-    .hp-numeric .total { color: var(--muted); }
 
-    /* Tiles */
-    .tiles {
+    /* === COMPONENTS INLINE === */
+    .components {
       width: 100%;
       max-width: 460px;
       margin-top: 24px;
       display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 8px;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0;
+      padding: 14px 0;
+      border-top: 1px solid var(--faint);
+      border-bottom: 1px solid var(--faint);
     }
-    .tile {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 10px 12px;
+    .comp {
+      text-align: center;
+      padding: 0 4px;
+      border-right: 1px solid var(--faint);
     }
-    .tile-name {
-      font-size: 10px;
+    .comp:last-child { border-right: none; }
+    .comp-name {
+      font-size: 9px;
+      letter-spacing: 1.5px;
       text-transform: uppercase;
-      letter-spacing: 1.4px;
       color: var(--muted);
       margin-bottom: 4px;
     }
-    .tile-value {
-      font-size: 18px;
-      font-weight: 300;
+    .comp-value {
+      font-size: 22px;
+      font-weight: 200;
+      font-variant-numeric: tabular-nums;
     }
-    .tile-detail {
+    .comp-detail {
       font-size: 10px;
       color: var(--muted);
       margin-top: 2px;
+      min-height: 12px;
     }
 
+    /* === FOOTER META === */
     .meta {
       width: 100%;
       max-width: 460px;
-      margin-top: 16px;
-      font-size: 11px;
+      margin-top: 18px;
+      font-size: 10px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
       color: var(--muted);
-      display: flex;
-      justify-content: space-between;
-      flex-wrap: wrap;
-      gap: 6px;
-    }
-    .freshness {
-      width: 100%;
-      max-width: 460px;
-      margin-top: 12px;
-      padding: 8px 12px;
-      border-radius: 8px;
-      font-size: 12px;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      background: var(--card);
-      border: 1px solid var(--border);
-      color: var(--muted);
-      transition: background 0.4s, color 0.4s, border-color 0.4s;
+      flex-wrap: wrap;
+      gap: 8px;
     }
-    .freshness .dot {
-      width: 8px;
-      height: 8px;
+    .meta .freshness {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .meta .freshness .pulse {
+      width: 6px;
+      height: 6px;
       border-radius: 50%;
-      display: inline-block;
-      margin-right: 8px;
-      vertical-align: middle;
       background: #27ae60;
       box-shadow: 0 0 6px currentColor;
+      color: #27ae60;
     }
-    .freshness.warn {
-      background: rgba(230, 126, 34, 0.15);
-      border-color: rgba(230, 126, 34, 0.5);
-      color: #ffc580;
-    }
-    .freshness.warn .dot { background: #e67e22; }
-    .freshness.bad {
-      background: rgba(192, 57, 43, 0.18);
-      border-color: rgba(192, 57, 43, 0.5);
-      color: #ff8a80;
-    }
-    .freshness.bad .dot { background: #c0392b; }
+    .meta.warn .pulse { background: #e67e22; color: #e67e22; }
+    .meta.bad .pulse { background: #c0392b; color: #c0392b; }
+    .meta.warn { color: #ffc580; }
+    .meta.bad { color: #ff8a80; }
+
     .err {
       max-width: 460px;
       width: 100%;
       margin-top: 12px;
       background: rgba(192, 57, 43, 0.18);
       border: 1px solid rgba(192, 57, 43, 0.4);
-      border-radius: 10px;
+      border-radius: 8px;
       padding: 12px 14px;
       font-size: 13px;
       color: #ff8a80;
@@ -350,131 +225,50 @@
 </head>
 <body>
   <header>
-    <span id="updated">—</span>
-    <button class="refresh" id="refresh">Actualiser</button>
+    <span class="title">MoodLamp</span>
+    <button id="refresh">Actualiser</button>
   </header>
 
-  <div class="stage">
-    <div class="aura" id="aura"></div>
-    <div class="ground"></div>
+  <div class="hero">
+    <div class="score" id="score">—</div>
+    <div class="state"><span class="dot"></span><span id="state-label">en attente</span></div>
+  </div>
 
-    <div class="character state-idle mood-neutral" id="character">
-      <svg viewBox="0 0 200 280">
-        <!-- Bulles Zzz (état sleeping uniquement) -->
-        <g class="zzz">
-          <text x="135" y="60" font-size="22">Z</text>
-          <text x="148" y="40" font-size="18">z</text>
-          <text x="160" y="22" font-size="14">z</text>
-        </g>
-
-        <g class="body-grp">
-          <!-- Jambes (derrière le corps) -->
-          <g class="leg-l">
-            <rect x="73" y="200" width="14" height="44" rx="7" fill="#ffe8b5"/>
-            <ellipse cx="80" cy="252" rx="12" ry="6" fill="#3a2a1a"/>
-          </g>
-          <g class="leg-r">
-            <rect x="113" y="200" width="14" height="44" rx="7" fill="#ffe8b5"/>
-            <ellipse cx="120" cy="252" rx="12" ry="6" fill="#3a2a1a"/>
-          </g>
-
-          <!-- Corps -->
-          <ellipse cx="100" cy="160" rx="48" ry="55" fill="#ffd97a"/>
-
-          <!-- Bras -->
-          <g class="arm-l">
-            <ellipse cx="55" cy="160" rx="10" ry="28" fill="#ffd97a"/>
-          </g>
-          <g class="arm-r">
-            <ellipse cx="145" cy="160" rx="10" ry="28" fill="#ffd97a"/>
-          </g>
-
-          <!-- Tête -->
-          <circle cx="100" cy="80" r="50" fill="#ffe8b5"/>
-          <!-- Joues -->
-          <circle cx="65" cy="92" r="7" fill="#ff9b9b" opacity="0.6"/>
-          <circle cx="135" cy="92" r="7" fill="#ff9b9b" opacity="0.6"/>
-
-          <!-- ============ FACES ============ -->
-          <!-- Happy : yeux pétillants + grand sourire -->
-          <g class="face-group face-happy">
-            <path d="M82,75 Q88,68 94,75" stroke="#222" stroke-width="3.5" fill="none" stroke-linecap="round"/>
-            <path d="M106,75 Q112,68 118,75" stroke="#222" stroke-width="3.5" fill="none" stroke-linecap="round"/>
-            <path d="M82,100 Q100,118 118,100" stroke="#222" stroke-width="3.5" fill="none" stroke-linecap="round"/>
-          </g>
-          <!-- Neutral : yeux ronds, bouche petite ligne -->
-          <g class="face-group face-neutral">
-            <circle cx="88" cy="78" r="4" fill="#222"/>
-            <circle cx="112" cy="78" r="4" fill="#222"/>
-            <path d="M90,103 L110,103" stroke="#222" stroke-width="3" stroke-linecap="round"/>
-          </g>
-          <!-- Tired : yeux mi-clos, bouche neutre -->
-          <g class="face-group face-tired">
-            <path d="M82,80 Q88,84 94,80" stroke="#222" stroke-width="3" fill="none" stroke-linecap="round"/>
-            <path d="M106,80 Q112,84 118,80" stroke="#222" stroke-width="3" fill="none" stroke-linecap="round"/>
-            <path d="M88,105 L112,105" stroke="#222" stroke-width="3" stroke-linecap="round"/>
-            <!-- cernes -->
-            <path d="M82,86 L94,86" stroke="#222" stroke-width="1.5" opacity="0.4"/>
-            <path d="M106,86 L118,86" stroke="#222" stroke-width="1.5" opacity="0.4"/>
-          </g>
-          <!-- Exhausted : X-eyes / yeux barrés + bouche triste -->
-          <g class="face-group face-exhausted">
-            <path d="M82,73 L94,83 M94,73 L82,83" stroke="#222" stroke-width="3" stroke-linecap="round"/>
-            <path d="M106,73 L118,83 M118,73 L106,83" stroke="#222" stroke-width="3" stroke-linecap="round"/>
-            <path d="M85,108 Q100,98 115,108" stroke="#222" stroke-width="3" fill="none" stroke-linecap="round"/>
-          </g>
-          <!-- Sleeping : yeux fermés, petite bouche ouverte -->
-          <g class="face-group face-sleeping">
-            <path d="M82,80 Q88,75 94,80" stroke="#222" stroke-width="3" fill="none" stroke-linecap="round"/>
-            <path d="M106,80 Q112,75 118,80" stroke="#222" stroke-width="3" fill="none" stroke-linecap="round"/>
-            <ellipse cx="100" cy="105" rx="6" ry="4" fill="#3a2a1a"/>
-          </g>
-        </g>
-      </svg>
+  <div class="spark-wrap">
+    <div class="spark-row">
+      <span id="spark-title">24 dernières heures</span>
+      <span class="tabs">
+        <span class="tab active" data-range="24">24h</span>
+        <span class="tab" data-range="72">3j</span>
+        <span class="tab" data-range="168">7j</span>
+      </span>
     </div>
+    <svg class="spark" id="spark" viewBox="0 0 400 80" preserveAspectRatio="none"></svg>
   </div>
 
-  <div class="label-row">
-    <span class="activity-icon" id="activity-icon">🙂</span>
-    <span class="activity-label" id="activity-label">en attente…</span>
+  <div class="components" id="components"></div>
+
+  <div class="meta" id="meta">
+    <span class="freshness"><span class="pulse"></span><span id="fresh-text">—</span></span>
+    <span id="meta-right">—</span>
   </div>
 
-  <div class="hp-wrap">
-    <div class="hp-row">
-      <span>Forme du jour</span>
-      <span id="hp-state">—</span>
-    </div>
-    <div class="hp-bar">
-      <div class="hp-fill" id="hp-fill"></div>
-    </div>
-    <div class="hp-numeric"><span id="hp-current">—</span><span class="total"> / 100</span></div>
-  </div>
-
-  <div class="tiles" id="tiles"></div>
-
-  <div class="freshness" id="freshness">
-    <span><span class="dot"></span>Health Auto Export</span>
-    <span id="freshness-text">—</span>
-  </div>
-
-  <div class="meta" id="meta"></div>
   <div id="error"></div>
 
   <script>
-    const character = document.getElementById("character");
-    const aura = document.getElementById("aura");
-    const hpFill = document.getElementById("hp-fill");
-    const hpCurrent = document.getElementById("hp-current");
-    const hpState = document.getElementById("hp-state");
-    const tilesEl = document.getElementById("tiles");
-    const metaEl = document.getElementById("meta");
-    const errEl = document.getElementById("error");
-    const updatedEl = document.getElementById("updated");
-    const activityIcon = document.getElementById("activity-icon");
-    const activityLabel = document.getElementById("activity-label");
-    const refreshBtn = document.getElementById("refresh");
-    const freshnessEl = document.getElementById("freshness");
-    const freshnessText = document.getElementById("freshness-text");
+    const $ = (id) => document.getElementById(id);
+    const scoreEl = $("score");
+    const stateLabel = $("state-label");
+    const compEl = $("components");
+    const sparkEl = $("spark");
+    const sparkTitle = $("spark-title");
+    const metaEl = $("meta");
+    const freshText = $("fresh-text");
+    const metaRight = $("meta-right");
+    const errEl = $("error");
+
+    let currentData = null;
+    let rangeHours = 24;
 
     function fmtAge(iso) {
       if (!iso) return "—";
@@ -487,68 +281,119 @@
       return `il y a ${Math.round(h / 24)} j`;
     }
 
-    function pickMood(score) {
-      if (score < 30) return "exhausted";
-      if (score < 50) return "tired";
-      if (score < 70) return "neutral";
-      return "happy";
-    }
-
-    function pickState(d) {
-      if (d.is_asleep) return "sleeping";
+    function pickStateLabel(d) {
+      if (d.is_asleep) return "endormi";
       const a = d.recent_activity || {};
       const steps = a.steps_60min || 0;
       const maxHr = a.max_hr_60min || 0;
-      if (maxHr >= 110 || steps >= 500) return "running";
-      if (steps >= 50) return "walking";
-      return "idle";
+      if (maxHr >= 110 || steps >= 500) return "en mouvement";
+      if (steps >= 50) return "actif";
+      return "tranquille";
     }
 
-    const stateLabels = {
-      sleeping: ["💤", "endormi"],
-      running:  ["🏃", "en mouvement"],
-      walking:  ["🚶", "actif"],
-      idle:     ["🧘", "tranquille"],
-    };
-    const moodIcons = {
-      happy:     "😄",
-      neutral:   "🙂",
-      tired:     "😪",
-      exhausted: "😩",
-    };
+    function setColor(hex) {
+      document.documentElement.style.setProperty("--color", hex);
+      document.documentElement.style.setProperty("--color-soft", hex + "30");
+    }
 
-    function setCharacter(state, mood) {
-      character.className = `character state-${state} mood-${mood}`;
-      const [icon, label] = stateLabels[state];
-      const moodIcon = state === "sleeping" ? "💤" : moodIcons[mood];
-      activityIcon.textContent = moodIcon;
-      activityLabel.textContent = label;
+    function drawSpark(history, hours) {
+      const W = 400, H = 80, PAD = 4;
+      const cutoff = Date.now() - hours * 3600 * 1000;
+      const pts = (history || [])
+        .filter((p) => new Date(p.ts).getTime() >= cutoff)
+        .sort((a, b) => new Date(a.ts) - new Date(b.ts));
+
+      if (pts.length < 2) {
+        sparkEl.innerHTML = `<text class="empty" x="${W/2}" y="${H/2}" text-anchor="middle" dominant-baseline="middle">historique en cours d'accumulation</text>`;
+        return;
+      }
+
+      const t0 = new Date(pts[0].ts).getTime();
+      const t1 = new Date(pts[pts.length - 1].ts).getTime();
+      const dt = Math.max(1, t1 - t0);
+
+      const x = (ts) => PAD + ((new Date(ts).getTime() - t0) / dt) * (W - 2 * PAD);
+      const y = (s) => PAD + (1 - s / 100) * (H - 2 * PAD);
+
+      const linePts = pts.map((p) => `${x(p.ts).toFixed(1)},${y(p.score).toFixed(1)}`).join(" ");
+      const areaPts = `${x(pts[0].ts).toFixed(1)},${H} ${linePts} ${x(pts[pts.length - 1].ts).toFixed(1)},${H}`;
+      const last = pts[pts.length - 1];
+      const lx = x(last.ts), ly = y(last.score);
+
+      // Lignes de référence à 30/50/70
+      const ref = [30, 50, 70].map((s) => {
+        const yy = y(s).toFixed(1);
+        return `<line class="ref" x1="0" y1="${yy}" x2="${W}" y2="${yy}"/>`;
+      }).join("");
+
+      sparkEl.innerHTML = `
+        ${ref}
+        <polygon class="area" points="${areaPts}"/>
+        <polyline class="line" points="${linePts}"/>
+        <circle class="pt-last" cx="${lx.toFixed(1)}" cy="${ly.toFixed(1)}" r="3.5"/>
+      `;
     }
 
     const componentLabels = {
-      sleep: "Sommeil",
-      rhr: "FC repos",
-      load: "Charge 3j",
-      discharge: "Décharge",
+      sleep: "Sommeil", rhr: "FC repos", load: "Charge", discharge: "Décharge",
     };
     function detailFor(key, det) {
       if (!det) return "";
       switch (key) {
-        case "sleep":
-          if (det.note) return det.note;
-          return `${det.hours}h · ${det.deep_pct}% profond`;
-        case "rhr":
-          if (det.note) return det.note;
-          return `${det.current} bpm (Δ${det.delta >= 0 ? "+" : ""}${det.delta})`;
-        case "load":
-          return `${det.steps_3d.toLocaleString()} pas · ratio ${det.ratio}`;
-        case "discharge":
-          if (det.note) return det.note;
-          return `${det.minutes_high_hr}min FC↑ · ${det.since_wake_h}h éveillé`;
-        default:
-          return "";
+        case "sleep": return det.note || `${det.hours}h`;
+        case "rhr":   return det.note || `${det.current} bpm`;
+        case "load":  return `ratio ${det.ratio}`;
+        case "discharge": return det.note || `${det.minutes_high_hr}min FC↑`;
       }
+      return "";
     }
+
+    function render(d) {
+      currentData = d;
+      setColor(d.color_hex);
+
+      scoreEl.textContent = Math.round(d.score);
+      stateLabel.textContent = `${d.color_name} · ${pickStateLabel(d)}`;
+
+      compEl.innerHTML = "";
+      for (const k of ["sleep", "rhr", "load", "discharge"]) {
+        const div = document.createElement("div");
+        div.className = "comp";
+        div.innerHTML = `
+          <div class="comp-name">${componentLabels[k]}</div>
+          <div class="comp-value">${Math.round(d.components[k])}</div>
+          <div class="comp-detail">${detailFor(k, d.components_detail[k])}</div>
+        `;
+        compEl.appendChild(div);
+      }
+
+      // Freshness
+      metaEl.classList.remove("warn", "bad");
+      if (!d.last_push_at) {
+        freshText.textContent = "aucun envoi";
+        metaEl.classList.add("bad");
+      } else {
+        const ageMin = Math.round((Date.now() - new Date(d.last_push_at)) / 60000);
+        freshText.textContent = "envoi " + fmtAge(d.last_push_at);
+        if (ageMin > 180) metaEl.classList.add("bad");
+        else if (ageMin > 90) metaEl.classList.add("warn");
+      }
+      metaRight.textContent = `confiance ${Math.round(d.confidence * 100)}% · baseline ${Math.round(d.baseline.rhr_mean)}`;
+
+      drawSpark(d.score_history, rangeHours);
+    }
+
+    document.querySelectorAll(".tab").forEach((t) => {
+      t.addEventListener("click", () => {
+        document.querySelectorAll(".tab").forEach((x) => x.classList.remove("active"));
+        t.classList.add("active");
+        rangeHours = parseInt(t.dataset.range, 10);
+        sparkTitle.textContent = rangeHours === 24 ? "24 dernières heures"
+          : rangeHours === 72 ? "3 derniers jours"
+          : "7 derniers jours";
+        if (currentData) drawSpark(currentData.score_history, rangeHours);
+      });
+    });
 
     async function load() {
       errEl.innerHTML = "";
@@ -558,11 +403,9 @@
           if (r.status === 404) {
             const j = await r.json();
             throw new Error(
-              j.reason === "no_baseline"
-                ? "Baseline pas encore poussée depuis le Mac."
-                : j.reason === "no_history"
-                ? "En attente du premier export Health Auto Export."
-                : `404 (${j.reason})`
+              j.reason === "no_baseline" ? "Baseline pas encore poussée."
+              : j.reason === "no_history" ? "En attente du premier export HAE."
+              : `404 (${j.reason})`
             );
           }
           throw new Error(`HTTP ${r.status}`);
@@ -570,61 +413,12 @@
         render(await r.json());
       } catch (e) {
         errEl.innerHTML = `<div class="err">${e.message}</div>`;
-        setCharacter("idle", "exhausted");
-        hpState.textContent = "indisponible";
+        scoreEl.textContent = "—";
+        stateLabel.textContent = "indisponible";
       }
     }
 
-    function render(d) {
-      const mood = pickMood(d.score);
-      const state = pickState(d);
-      setCharacter(state, mood);
-
-      hpFill.style.width = `${Math.max(2, Math.min(100, d.score))}%`;
-      hpFill.style.background = d.color_hex;
-      hpFill.style.boxShadow = `0 0 14px ${d.color_hex}`;
-      hpCurrent.textContent = Math.round(d.score);
-      hpState.textContent = d.is_asleep ? "endormi" : d.color_name;
-
-      // Tint global
-      document.documentElement.style.setProperty("--hp-color", d.color_hex);
-      document.documentElement.style.setProperty("--aura", d.color_hex + "40");
-
-      tilesEl.innerHTML = "";
-      for (const k of ["sleep", "rhr", "load", "discharge"]) {
-        const div = document.createElement("div");
-        div.className = "tile";
-        div.innerHTML = `
-          <div class="tile-name">${componentLabels[k]}</div>
-          <div class="tile-value">${Math.round(d.components[k])}</div>
-          <div class="tile-detail">${detailFor(k, d.components_detail[k])}</div>
-        `;
-        tilesEl.appendChild(div);
-      }
-
-      const a = d.recent_activity || {};
-
-      // Freshness pill : >90min = warn, >180min = bad
-      freshnessEl.classList.remove("warn", "bad");
-      if (!d.last_push_at) {
-        freshnessText.textContent = "aucun envoi";
-        freshnessEl.classList.add("bad");
-      } else {
-        const ageMin = Math.round((Date.now() - new Date(d.last_push_at)) / 60000);
-        freshnessText.textContent = "dernier envoi " + fmtAge(d.last_push_at);
-        if (ageMin > 180) freshnessEl.classList.add("bad");
-        else if (ageMin > 90) freshnessEl.classList.add("warn");
-      }
-
-      updatedEl.textContent = "calculé " + fmtAge(d.timestamp);
-      metaEl.innerHTML = `
-        <span>confiance ${Math.round(d.confidence * 100)}%</span>
-        <span>1h: ${a.steps_60min || 0} pas, FC max ${a.max_hr_60min || "—"}</span>
-        <span>baseline ${Math.round(d.baseline.rhr_mean)} bpm · ${d.baseline.n_days}j</span>
-      `;
-    }
-
-    refreshBtn.addEventListener("click", load);
+    $("refresh").addEventListener("click", load);
     load();
     setInterval(load, 5 * 60 * 1000);
   </script>

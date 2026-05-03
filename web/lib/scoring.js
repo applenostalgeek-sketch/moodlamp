@@ -283,6 +283,27 @@ export function colorForScore(score, isAsleep) {
   return [last[2], last[3]];
 }
 
+export function seedScoreHistory(history, baseline, hoursBack = 168, stepHours = 1) {
+  const out = [];
+  const now = Date.now();
+  for (let h = hoursBack; h >= 0; h -= stepHours) {
+    const at = new Date(now - h * 3600 * 1000);
+    try {
+      const r = compute(history, baseline, at);
+      out.push({
+        ts: r.timestamp,
+        score: r.score,
+        color_hex: r.color_hex,
+        color_name: r.color_name,
+        is_asleep: r.is_asleep,
+      });
+    } catch (e) {
+      // skip if data insufficient at that point
+    }
+  }
+  return out;
+}
+
 export function recentActivity(history, at) {
   const cutoff = new Date(at.getTime() - 60 * 60 * 1000);
   const steps = (history.steps || []).filter((s) => new Date(s.ts) >= cutoff);

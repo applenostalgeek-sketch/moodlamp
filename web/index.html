@@ -5,26 +5,257 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>MoodLamp</title>
   <style>
+    :root {
+      --bg: #0d0d0f;
+      --fg: #fff;
+      --muted: rgba(255, 255, 255, 0.55);
+      --card: rgba(255, 255, 255, 0.04);
+      --border: rgba(255, 255, 255, 0.08);
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; height: 100%; }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-      background: #1a1a1a;
-      color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 32px 20px 60px;
+      transition: background 1.2s ease;
+    }
+    header {
+      width: 100%;
+      max-width: 480px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 36px;
+    }
+    .lamp-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 24px;
+      margin-bottom: 28px;
+    }
+    .lamp {
+      width: 220px;
+      height: 220px;
+      border-radius: 50%;
+      background: #444;
+      box-shadow: 0 0 80px 4px currentColor;
+      color: #888;
+      transition: background 1.2s ease, box-shadow 1.2s ease, color 1.2s ease;
       display: flex;
       align-items: center;
       justify-content: center;
-      min-height: 100vh;
-      margin: 0;
-      text-align: center;
-      padding: 20px;
+      font-size: 64px;
+      font-weight: 200;
+      letter-spacing: -2px;
     }
-    h1 { font-weight: 200; font-size: 36px; margin-bottom: 16px; }
-    p { opacity: 0.6; }
+    .lamp.loading { opacity: 0.4; }
+    .label {
+      text-transform: uppercase;
+      font-size: 12px;
+      letter-spacing: 2px;
+      color: var(--muted);
+    }
+    .components {
+      width: 100%;
+      max-width: 480px;
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin-bottom: 24px;
+    }
+    .comp {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 16px;
+    }
+    .comp-name {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1.4px;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    .comp-value {
+      font-size: 22px;
+      font-weight: 300;
+    }
+    .comp-detail {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 4px;
+      min-height: 14px;
+    }
+    .meta {
+      width: 100%;
+      max-width: 480px;
+      font-size: 12px;
+      color: var(--muted);
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .err {
+      max-width: 480px;
+      width: 100%;
+      background: rgba(192, 57, 43, 0.18);
+      border: 1px solid rgba(192, 57, 43, 0.4);
+      border-radius: 10px;
+      padding: 14px 16px;
+      font-size: 13px;
+      color: #ff8a80;
+    }
+    button.refresh {
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    button.refresh:hover { color: var(--fg); }
   </style>
 </head>
 <body>
-  <div>
-    <h1>MoodLamp</h1>
-    <p>en cours de configuration</p>
+  <header>
+    <span id="updated">—</span>
+    <button class="refresh" id="refresh">Actualiser</button>
+  </header>
+
+  <div class="lamp-wrap">
+    <div class="lamp loading" id="lamp">—</div>
+    <div class="label" id="state">chargement</div>
   </div>
+
+  <div class="components" id="components"></div>
+  <div class="meta" id="meta"></div>
+  <div id="error"></div>
+
+  <script>
+    const lamp = document.getElementById("lamp");
+    const stateEl = document.getElementById("state");
+    const compEl = document.getElementById("components");
+    const metaEl = document.getElementById("meta");
+    const errEl = document.getElementById("error");
+    const updatedEl = document.getElementById("updated");
+    const refreshBtn = document.getElementById("refresh");
+
+    function fmtAge(iso) {
+      if (!iso) return "—";
+      const ms = Date.now() - new Date(iso).getTime();
+      const min = Math.round(ms / 60000);
+      if (min < 1) return "à l'instant";
+      if (min < 60) return `il y a ${min} min`;
+      const h = Math.round(min / 60);
+      if (h < 24) return `il y a ${h} h`;
+      return `il y a ${Math.round(h / 24)} j`;
+    }
+
+    function tile(name, score, detail) {
+      const div = document.createElement("div");
+      div.className = "comp";
+      div.innerHTML = `
+        <div class="comp-name">${name}</div>
+        <div class="comp-value">${Math.round(score)}</div>
+        <div class="comp-detail">${detail}</div>
+      `;
+      return div;
+    }
+
+    function detailFor(key, det) {
+      if (!det) return "";
+      switch (key) {
+        case "sleep":
+          if (det.note) return det.note;
+          return `${det.hours}h · ${det.deep_pct}% profond`;
+        case "rhr":
+          if (det.note) return det.note;
+          return `${det.current} bpm (Δ ${det.delta >= 0 ? "+" : ""}${det.delta})`;
+        case "load":
+          return `${det.steps_3d.toLocaleString()} pas · ratio ${det.ratio}`;
+        case "discharge":
+          if (det.note) return det.note;
+          return `${det.minutes_high_hr} min FC élevée · ${det.since_wake_h}h éveillé`;
+        default:
+          return "";
+      }
+    }
+
+    const labels = {
+      sleep: "Sommeil",
+      rhr: "FC repos",
+      load: "Charge 3j",
+      discharge: "Décharge",
+    };
+
+    async function load() {
+      errEl.innerHTML = "";
+      try {
+        const r = await fetch("/api/score?_=" + Date.now());
+        if (!r.ok) {
+          if (r.status === 404) {
+            const j = await r.json();
+            throw new Error(
+              j.reason === "no_baseline"
+                ? "Baseline pas encore poussée depuis le Mac."
+                : j.reason === "no_history"
+                ? "En attente du premier export Health Auto Export."
+                : `404 (${j.reason})`
+            );
+          }
+          throw new Error(`HTTP ${r.status}`);
+        }
+        const data = await r.json();
+        render(data);
+      } catch (e) {
+        errEl.innerHTML = `<div class="err">${e.message}</div>`;
+        lamp.style.background = "#222";
+        lamp.style.color = "#222";
+        lamp.textContent = "—";
+        stateEl.textContent = "indisponible";
+      }
+    }
+
+    function render(d) {
+      lamp.classList.remove("loading");
+      lamp.style.background = d.color_hex;
+      lamp.style.color = d.color_hex;
+      lamp.textContent = Math.round(d.score);
+      stateEl.textContent = d.is_asleep
+        ? `endormi (${d.color_name})`
+        : d.color_name;
+
+      compEl.innerHTML = "";
+      for (const k of ["sleep", "rhr", "load", "discharge"]) {
+        compEl.appendChild(
+          tile(labels[k], d.components[k], detailFor(k, d.components_detail[k]))
+        );
+      }
+
+      updatedEl.textContent = "calculé " + fmtAge(d.timestamp);
+      metaEl.innerHTML = `
+        <span>confiance ${(d.confidence * 100).toFixed(0)}%</span>
+        <span>baseline ${Math.round(d.baseline.rhr_mean)} bpm · ${d.baseline.n_days}j</span>
+      `;
+
+      // Tint background subtly
+      document.body.style.background = `radial-gradient(circle at center, ${d.color_hex}22, var(--bg) 70%)`;
+    }
+
+    refreshBtn.addEventListener("click", load);
+    load();
+    setInterval(load, 5 * 60 * 1000);
+  </script>
 </body>
 </html>

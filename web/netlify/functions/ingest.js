@@ -1,35 +1,37 @@
-import { getStore } from "@netlify/blobs";
+import { store } from "../../lib/storage.js";
+import { parseHaePayload } from "../../lib/parser.js";
+import { mergeHistory, historyStats } from "../../lib/merge.js";
+import { compute } from "../../lib/scoring.js";
+
+const HISTORY_KEY = "history";
+const BASELINE_KEY = "baseline";
+const SCORE_KEY = "score";
+const LAST_PAYLOAD_KEY = "last_payload";
 
 export default async (req) => {
-  const store = getStore("moodlamp");
+  const blob = store();
 
   if (req.method === "GET") {
-    const last = await store.get("last_payload", { type: "json" });
-    return new Response(
-      JSON.stringify(
-        {
-          has_payload: last !== null,
-          last_payload: last,
-        },
-        null,
-        2
-      ),
-      {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      }
-    );
+    const [history, baseline, score, last] = await Promise.all([
+      blob.get(HISTORY_KEY, { type: "json" }),
+      blob.get(BASELINE_KEY, { type: "json" }),
+      blob.get(SCORE_KEY, { type: "json" }),
+      blob.get(LAST_PAYLOAD_KEY, { type: "json" }),
+    ]);
+    return json({
+      has_history: !!history,
+      history_stats: history ? historyStats(history) : null,
+      has_baseline: !!baseline,
+      has_score: !!score,
+      last_received_at: last?.received_at || null,
+    });
   }
 
   if (req.method !== "POST") {
     return new Response("Method not allowed", { status: 405 });
   }
 
-  const headers = {};
-  for (const [k, v] of req.headers.entries()) headers[k] = v;
-
   const rawBody = await req.text();
-
   let parsed = null;
   let parseError = null;
   try {
@@ -38,33 +40,63 @@ export default async (req) => {
     parseError = String(e);
   }
 
-  const enriched = {
-    received_at: new Date().toISOString(),
-    method: req.method,
-    headers,
-    body_size_bytes: rawBody.length,
-    body_preview: rawBody.slice(0, 4000),
-    parse_error: parseError,
-    parsed_keys: parsed && typeof parsed === "object" ? Object.keys(parsed) : null,
-    parsed,
-  };
+  const receivedAt = new Date().toISOString();
 
-  await store.setJSON("last_payload", enriched);
+  if (!parsed) {
+    await blob.setJSON(LAST_PAYLOAD_KEY, {
+      received_at: receivedAt,
+      body_size_bytes: rawBody.length,
+      parse_error: parseError,
+    });
+    return json({ status: "error", reason: "invalid_json" }, 400);
+  }
 
-  return new Response(
-    JSON.stringify({
-      status: "ok",
-      received_at: enriched.received_at,
-      body_size_bytes: enriched.body_size_bytes,
-      content_type: headers["content-type"] || null,
-      parsed: parsed !== null,
-    }),
-    {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
+  const incoming = parseHaePayload(parsed);
+  const existing = await blob.get(HISTORY_KEY, { type: "json" });
+  const merged = mergeHistory(existing, incoming, 7);
+  await blob.setJSON(HISTORY_KEY, merged);
+
+  const baseline = await blob.get(BASELINE_KEY, { type: "json" });
+  let scoreResult = null;
+  let scoreError = null;
+  if (baseline) {
+    try {
+      scoreResult = compute(merged, baseline);
+      await blob.setJSON(SCORE_KEY, scoreResult);
+    } catch (e) {
+      scoreError = String(e);
     }
-  );
+  }
+
+  await blob.setJSON(LAST_PAYLOAD_KEY, {
+    received_at: receivedAt,
+    body_size_bytes: rawBody.length,
+    incoming_stats: historyStats(incoming),
+    history_stats: historyStats(merged),
+    has_baseline: !!baseline,
+    score: scoreResult ? scoreResult.score : null,
+    score_error: scoreError,
+  });
+
+  return json({
+    status: "ok",
+    received_at: receivedAt,
+    body_size_bytes: rawBody.length,
+    incoming_stats: historyStats(incoming),
+    history_stats: historyStats(merged),
+    score: scoreResult ? scoreResult.score : null,
+    color: scoreResult ? scoreResult.color_name : null,
+    has_baseline: !!baseline,
+    score_error: scoreError,
+  });
 };
+
+function json(obj, status = 200) {
+  return new Response(JSON.stringify(obj, null, 2), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+}
 
 export const config = {
   path: "/api/ingest",
